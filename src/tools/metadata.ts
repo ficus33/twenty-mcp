@@ -3,14 +3,23 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { TwentyClient } from '../client/twenty-client.js';
 
 export function registerMetadataTools(server: McpServer, client: TwentyClient) {
-  server.tool(
+  server.registerTool(
     'list_all_objects',
-    'List all objects (entities) available in Twenty CRM with their metadata',
     {
-      includeCustom: z.boolean().optional().default(true).describe('Include custom objects'),
-      includeSystem: z.boolean().optional().default(false).describe('Include system objects'),
-      activeOnly: z.boolean().optional().default(true).describe('Only include active objects'),
-      groupBy: z.enum(['type', 'none']).optional().default('type').describe('How to group the results'),
+      title: 'List All Objects',
+      description: 'Query the Twenty CRM metadata API to discover all available objects (entities), grouped by type (standard, custom, system). Returns object names, labels, and counts.',
+      inputSchema: {
+        includeCustom: z.boolean().optional().default(true).describe('Include custom objects'),
+        includeSystem: z.boolean().optional().default(false).describe('Include system objects'),
+        activeOnly: z.boolean().optional().default(true).describe('Only include active objects'),
+        groupBy: z.enum(['type', 'none']).optional().default('type').describe('How to group the results'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       try {
@@ -21,15 +30,15 @@ export function registerMetadataTools(server: McpServer, client: TwentyClient) {
         });
 
         if (args.groupBy === 'type') {
-          const standardObjects = objectSummary.standard.map(obj => 
+          const standardObjects = objectSummary.standard.map(obj =>
             `📊 ${obj.labelSingular} (${obj.nameSingular})`
           );
-          
-          const customObjects = objectSummary.custom.map(obj => 
+
+          const customObjects = objectSummary.custom.map(obj =>
             `🎨 ${obj.labelSingular} (${obj.nameSingular})`
           );
-          
-          const systemObjects = objectSummary.system.map(obj => 
+
+          const systemObjects = objectSummary.system.map(obj =>
             `⚙️ ${obj.labelSingular} (${obj.nameSingular})`
           );
 
@@ -95,12 +104,21 @@ export function registerMetadataTools(server: McpServer, client: TwentyClient) {
     }
   );
 
-  server.tool(
+  server.registerTool(
     'get_object_schema',
-    'Get detailed schema information for a specific object including all fields and their types',
     {
-      objectName: z.string().describe('Object name (singular or plural) or ID to get schema for'),
-      includeSystemFields: z.boolean().optional().default(false).describe('Include system fields in the output'),
+      title: 'Get Object Schema',
+      description: 'Query the Twenty CRM metadata API for the detailed schema of a specific object, including all fields, their types, nullability, and default values.',
+      inputSchema: {
+        objectName: z.string().describe('Object name (singular or plural) or ID to get schema for'),
+        includeSystemFields: z.boolean().optional().default(false).describe('Include system fields in the output'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       try {
@@ -117,7 +135,7 @@ export function registerMetadataTools(server: McpServer, client: TwentyClient) {
           const customIcon = field.isCustom ? '🎨' : '';
           const nullableText = field.isNullable ? '(optional)' : '(required)';
           const defaultText = field.defaultValue ? ` [default: ${field.defaultValue}]` : '';
-          
+
           return `  ${customIcon} **${field.label}** (${field.name})
     Type: ${field.type} ${nullableText}${defaultText}
     ${field.description ? `Description: ${field.description}` : 'No description'}`;
@@ -158,19 +176,28 @@ ${fieldList}
     }
   );
 
-  server.tool(
+  server.registerTool(
     'get_field_metadata',
-    'Get detailed information about fields, either for a specific object or across all objects',
     {
-      objectName: z.string().optional().describe('Object name to get fields for (if not specified, gets all fields)'),
-      fieldType: z.enum([
-        'UUID', 'TEXT', 'PHONE', 'EMAIL', 'DATE_TIME', 'DATE', 'BOOLEAN', 
-        'NUMBER', 'CURRENCY', 'FULL_NAME', 'LINK', 'LINKS', 'ADDRESS', 
-        'RATING', 'SELECT', 'MULTI_SELECT', 'RELATION', 'RICH_TEXT', 'POSITION', 'RAW_JSON'
-      ]).optional().describe('Filter by specific field type'),
-      includeCustom: z.boolean().optional().default(true).describe('Include custom fields'),
-      includeSystem: z.boolean().optional().default(false).describe('Include system fields'),
-      activeOnly: z.boolean().optional().default(true).describe('Only include active fields'),
+      title: 'Get Field Metadata',
+      description: 'Query the Twenty CRM metadata API for detailed field information, either for a specific object or across all objects. Supports filtering by field type, custom/system status, and activity state.',
+      inputSchema: {
+        objectName: z.string().optional().describe('Object name to get fields for (if not specified, gets all fields)'),
+        fieldType: z.enum([
+          'UUID', 'TEXT', 'PHONE', 'EMAIL', 'DATE_TIME', 'DATE', 'BOOLEAN',
+          'NUMBER', 'CURRENCY', 'FULL_NAME', 'LINK', 'LINKS', 'ADDRESS',
+          'RATING', 'SELECT', 'MULTI_SELECT', 'RELATION', 'RICH_TEXT', 'POSITION', 'RAW_JSON'
+        ]).optional().describe('Filter by specific field type'),
+        includeCustom: z.boolean().optional().default(true).describe('Include custom fields'),
+        includeSystem: z.boolean().optional().default(false).describe('Include system fields'),
+        activeOnly: z.boolean().optional().default(true).describe('Only include active fields'),
+      },
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
     },
     async (args) => {
       try {
@@ -201,26 +228,26 @@ ${fieldList}
         });
 
         let content = `# Field Metadata Summary\n\n`;
-        
+
         if (args.objectName) {
           content += `**Object**: ${args.objectName}\n`;
         }
-        
+
         content += `**Total Fields**: ${fields.length}\n`;
-        
+
         if (args.fieldType) {
           content += `**Field Type Filter**: ${args.fieldType}\n`;
         }
-        
+
         content += `\n## Fields by Type\n\n`;
 
         Object.entries(fieldsByType).forEach(([type, typeFields]) => {
           content += `### ${type} (${typeFields.length})\n\n`;
-          
+
           typeFields.forEach(field => {
             const customIcon = field.isCustom ? '🎨 ' : '';
             const requiredText = field.isNullable ? '' : ' ⚠️';
-            
+
             content += `- ${customIcon}**${field.label}** (${field.name})${requiredText}\n`;
             if (field.description) {
               content += `  ${field.description}\n`;
@@ -229,7 +256,7 @@ ${fieldList}
               content += `  Default: ${field.defaultValue}\n`;
             }
           });
-          
+
           content += '\n';
         });
 
